@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - master
 
 env:
   IMAGE_NAME: ${{ secrets.IMAGE_NAME }}
@@ -28,13 +27,15 @@ jobs:
       - name: Build Docker image
         run: |
           SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-8)
+          echo "Using short SHA: $SHORT_SHA"
           docker build -t $ACR_LOGIN_SERVER/$IMAGE_NAME:$SHORT_SHA .
           docker tag $ACR_LOGIN_SERVER/$IMAGE_NAME:$SHORT_SHA $ACR_LOGIN_SERVER/$IMAGE_NAME:latest
 
       - name: Push Docker image to ACR
         run: |
+          SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-8)
           docker push $ACR_LOGIN_SERVER/$IMAGE_NAME:$SHORT_SHA
           docker push $ACR_LOGIN_SERVER/$IMAGE_NAME:latest
 
       - name: Finished
-        run: echo "Image pushed successfully!"
+        run: echo "Image successfully built and pushed to ACR!"

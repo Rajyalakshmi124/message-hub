@@ -1,0 +1,19 @@
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    ports:
+      - "27019:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - message_app_network
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  message_app_network:
+    name: message_app_network  # <-- THIS LINE IS THE FIX
+    driver: bridge

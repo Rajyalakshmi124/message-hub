@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Message App</title>
+    <style>
+        :root {
+            --bg-color: #f4f7f9;
+            --card-bg-color: #ffffff;
+            --text-color: #333;
+            --border-color: #e0e0e0;
+            --primary-accent: #667eea;
+            --primary-accent-dark: #764ba2;
+            --error-color: #e74c3c;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            background-color: var(--bg-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: var(--text-color);
+        }
+        .login-container {
+            max-width: 400px;
+            width: 90%;
+            background-color: var(--card-bg-color);
+            border-radius: 20px;
+            box-shadow: 0 10px 40px var(--shadow-color);
+            padding: 2.5em;
+            border: 1px solid var(--border-color);
+        }
+        h2 {
+            text-align: center;
+            font-weight: 600;
+            font-size: 28px;
+            margin-bottom: 1.5em;
+        }
+        .input-group {
+            margin-bottom: 1.5em;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            box-sizing: border-box;
+            background-color: var(--bg-color);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 15px;
+            font-size: 16px;
+            color: var(--text-color);
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        input:focus {
+            outline: none;
+            border-color: var(--primary-accent);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        }
+        .login-button {
+            width: 100%;
+            padding: 15px 30px;
+            border: none;
+            background: linear-gradient(135deg, var(--primary-accent) 0%, var(--primary-accent-dark) 100%);
+            color: white;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-size: 16px;
+            font-weight: 500;
+            box-shadow: 0 4px 15px 0 rgba(118, 75, 162, 0.3);
+        }
+        .login-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px 0 rgba(118, 75, 162, 0.35);
+        }
+        .error-message {
+            color: var(--error-color);
+            font-size: 14px;
+            margin-top: 15px;
+            text-align: center;
+            /* This logic will display the error message if the server sends one */
+            display: {% if error %}block{% else %}none{% endif %};
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h2>Welcome Back</h2>
+        <!-- The form will POST the data to the /login route -->
+        <form action="/login" method="post">
+            <div class="input-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            <div class="input-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit" class="login-button">Login</button>
+        </form>
+        <div class="error-message">
+            <!-- This is where the error message from app.py will be displayed -->
+            {{ error }}
+        </div>
+    </div>
+</body>
+</html>

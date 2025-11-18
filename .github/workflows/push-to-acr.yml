@@ -30,7 +30,7 @@ jobs:
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
 
-      # Step 3: Build Docker image with a version tag (not latest)
+      # Step 3: Build Docker image
       - name: Build Docker image
         run: |
           SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-8)

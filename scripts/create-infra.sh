@@ -1,9 +1,9 @@
 #!/bin/bash
-set -euo pipefail   # Stop if any command fails
+set -euo pipefail
 
-#######################################
-# Basic Configuration
-#######################################
+MODE=${1:-create}
+
+# Config
 SUBSCRIPTION_NAME="Founder-HUB-Microsoft Azure Sponsorship"
 RESOURCE_GROUP="exr-dvo-intern-inc"
 LOCATION="Central India"
@@ -11,92 +11,78 @@ ACR_NAME="messagehubacr"
 CONTAINER_APP_ENV="messagehub-env"
 LOG_WORKSPACE="workspace-${RESOURCE_GROUP}"
 
-echo "-----------------------------------------"
-echo "  Azure Infrastructure Setup Started"
-echo "-----------------------------------------"
+echo "==========================================="
+echo " MODE: $MODE"
+echo "==========================================="
 
-#######################################
-# Step 1: Set Azure subscription
-#######################################
-echo "[1] Setting subscription..."
+# Step 1: Set subscription
 az account set --subscription "$SUBSCRIPTION_NAME"
-echo "✓ Subscription set"
-echo ""
 
-#######################################
-# Step 2: Create resource group (if missing)
-#######################################
-echo "[2] Checking resource group..."
-if az group show -n "$RESOURCE_GROUP" &>/dev/null; then
-  echo "✓ Resource group exists"
-else
-  echo "→ Creating resource group..."
-  az group create -n "$RESOURCE_GROUP" -l "$LOCATION"
-  echo "✓ Resource group created"
-fi
-echo ""
+###############################################
+# MODE: DELETE
+###############################################
+if [[ "$MODE" == "delete" ]]; then
+    echo "[DELETE] Deleting Azure resources except Resource Group..."
 
-#######################################
-# Step 3: Create Log Analytics workspace
-#######################################
-echo "[3] Checking Log Analytics workspace..."
-if az monitor log-analytics workspace show -g "$RESOURCE_GROUP" -n "$LOG_WORKSPACE" &>/dev/null; then
-  echo "✓ Workspace exists"
-else
-  echo "→ Creating workspace..."
-  az monitor log-analytics workspace create \
-    -g "$RESOURCE_GROUP" \
-    -n "$LOG_WORKSPACE" \
-    --location "$LOCATION"
-  echo "✓ Workspace created"
-fi
-echo ""
+    # Delete Container Apps Environment
+    echo "[DELETE] Container App Environment: $CONTAINER_APP_ENV"
+    az containerapp env delete --name "$CONTAINER_APP_ENV" --resource-group "$RESOURCE_GROUP" --yes || echo "Not found"
 
-#######################################
-# Step 4: Create ACR (if missing)
-#######################################
-echo "[4] Checking Azure Container Registry..."
-if az acr show -n "$ACR_NAME" -g "$RESOURCE_GROUP" &>/dev/null; then
-  echo "✓ ACR exists"
-else
-  echo "→ Creating ACR..."
-  az acr create \
-    --resource-group "$RESOURCE_GROUP" \
-    --name "$ACR_NAME" \
-    --sku Basic \
-    --admin-enabled true \
-    --location "$LOCATION"
-  echo "✓ ACR created"
-fi
-echo ""
+    # Delete ACR
+    echo "[DELETE] ACR: $ACR_NAME"
+    az acr delete --name "$ACR_NAME" --resource-group "$RESOURCE_GROUP" --yes || echo "Not found"
 
-#######################################
-# Step 5: Create Container Apps Environment
-#######################################
-echo "[5] Checking Container App environment..."
-if az containerapp env show --name "$CONTAINER_APP_ENV" --resource-group "$RESOURCE_GROUP" &>/dev/null; then
-  echo "✓ Environment exists"
-else
-  echo "→ Creating Container App environment..."
+    # Delete Log Analytics Workspace
+    echo "[DELETE] Workspace: $LOG_WORKSPACE"
+    az monitor log-analytics workspace delete \
+        --resource-group "$RESOURCE_GROUP" \
+        --workspace-name "$LOG_WORKSPACE" \
+        --yes || echo "Not found"
 
-  # Get workspace ID & key
-  WORKSPACE_ID=$(az monitor log-analytics workspace show \
-      -g "$RESOURCE_GROUP" -n "$LOG_WORKSPACE" --query customerId -o tsv)
-
-  WORKSPACE_KEY=$(az monitor log-analytics workspace get-shared-keys \
-      -g "$RESOURCE_GROUP" -n "$LOG_WORKSPACE" --query primarySharedKey -o tsv)
-
-  az containerapp env create \
-    --name "$CONTAINER_APP_ENV" \
-    --resource-group "$RESOURCE_GROUP" \
-    --location "$LOCATION" \
-    --logs-workspace-id "$WORKSPACE_ID" \
-    --logs-workspace-key "$WORKSPACE_KEY"
-
-  echo "✓ Environment created"
+    echo "-----------------------------------------"
+    echo " Delete operation completed successfully!"
+    echo "-----------------------------------------"
+    exit 0
 fi
 
-echo ""
+###############################################
+# MODE: CREATE (Default)
+###############################################
+echo "[CREATE] Starting infra creation..."
+
+# Ensure Resource Group (do NOT delete)
+if ! az group show -n "$RESOURCE_GROUP" &> /dev/null; then
+    echo "[INFO] Creating Resource Group..."
+    az group create -n "$RESOURCE_GROUP" -l "$LOCATION"
+fi
+
+# Create Log Analytics Workspace
+if ! az monitor log-analytics workspace show -g "$RESOURCE_GROUP" -n "$LOG_WORKSPACE" &> /dev/null; then
+    echo "[CREATE] Creating Log Workspace..."
+    az monitor log-analytics workspace create \
+        -g "$RESOURCE_GROUP" \
+        -n "$LOG_WORKSPACE" \
+        --location "$LOCATION"
+fi
+
+WORKSPACE_ID=$(az monitor log-analytics workspace show -g "$RESOURCE_GROUP" -n "$LOG_WORKSPACE" --query customerId -o tsv)
+WORKSPACE_KEY=$(az monitor log-analytics workspace get-shared-keys -g "$RESOURCE_GROUP" -n "$LOG_WORKSPACE" --query primarySharedKey -o tsv)
+
+# Create ACR
+if ! az acr show -n "$ACR_NAME" -g "$RESOURCE_GROUP" &> /dev/null; then
+    az acr create --resource-group "$RESOURCE_GROUP" --name "$ACR_NAME" --sku Basic --admin-enabled true
+fi
+
+# Create Container Apps Environment
+if ! az containerapp env show --name "$CONTAINER_APP_ENV" --resource-group "$RESOURCE_GROUP" &> /dev/null; then
+    az containerapp env create \
+        --name "$CONTAINER_APP_ENV" \
+        --resource-group "$RESOURCE_GROUP" \
+        --location "$LOCATION" \
+        --logs-workspace-id "$WORKSPACE_ID" \
+        --logs-workspace-key "$WORKSPACE_KEY"
+fi
+
 echo "-----------------------------------------"
-echo "  Infra setup completed successfully!"
+echo " Infra creation completed successfully!"
 echo "-----------------------------------------"

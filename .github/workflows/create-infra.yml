@@ -1,34 +1,38 @@
-name: Create Azure Infrastructure
+name: Create or Delete Azure Infrastructure
 
-# Manual trigger
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        description: "Select operation"
+        required: true
+        options:
+          - create
+          - delete
 
 jobs:
-  create-infra:
+  infra:
     runs-on: ubuntu-22.04
-    permissions:
-      contents: read
 
     steps:
-
-      # Checkout repo to access the script
+      # Step 1: Checkout code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Login to Azure using service principal
+      # Step 2: Login to Azure
       - name: Login to Azure
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Install required Azure CLI extension
+      # Step 3: Install containerapp extension
       - name: Install containerapp extension
         run: |
           az extension add --name containerapp --yes || az extension update --name containerapp
 
-      # Run the infra creation shell script
+      # Step 4: Run infra script with mode (create/delete)
       - name: Run infra script
         run: |
           chmod +x scripts/create-infra.sh
-          ./scripts/create-infra.sh
+          ./scripts/create-infra.sh "${{ github.event.inputs.mode }}"

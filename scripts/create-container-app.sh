@@ -55,10 +55,12 @@ echo "[OK] Using image: $FULL_IMAGE"
 echo ""
 
 # STEP 5 — Get ACR password for pulling image
+echo "[STEP 5] Getting ACR password..."
 ACR_PASSWORD=$(az acr credential show -n "$ACR_NAME" --query passwords[0].value -o tsv)
 
 # STEP 6 — Create Container App
-echo "[STEP 6] Creating Container App..."
+echo "[STEP 6] Creating Container App with external ingress..."
+
 az containerapp create \
   --name "$CONTAINER_APP_NAME" \
   --resource-group "$RESOURCE_GROUP" \
@@ -66,6 +68,8 @@ az containerapp create \
   --image "$FULL_IMAGE" \
   --ingress external \
   --target-port 5000 \
+  --transport auto \
+  --traffic-weight 100 \
   --registry-server "$ACR_LOGIN_SERVER" \
   --registry-username "$ACR_NAME" \
   --registry-password "$ACR_PASSWORD"

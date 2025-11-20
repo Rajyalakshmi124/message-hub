@@ -1,30 +1,29 @@
-name: Deploy Container App
+name: Create Container App
 
 on:
   workflow_dispatch:
 
 jobs:
-  deploy:
+  deploy-app:
     runs-on: ubuntu-22.04
 
     steps:
-
-      # Step 1: Checkout code
+      # Checkout repo
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2: Login to Azure
+      # Login to Azure
       - name: Login to Azure
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Step 3: Install Container Apps extension
+      # Install containerapp CLI extension
       - name: Install containerapp extension
         run: |
           az extension add --name containerapp --yes || az extension update --name containerapp
 
-      # Step 4: Run container app creation script
+      # Run the container app creation script
       - name: Create Container App
         run: |
           chmod +x scripts/create-container-app.sh

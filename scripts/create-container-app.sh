@@ -54,12 +54,42 @@ FULL_IMAGE="$ACR_LOGIN_SERVER/$IMAGE_NAME:$LATEST_TAG"
 echo "[OK] Using image: $FULL_IMAGE"
 echo ""
 
-# STEP 5 — Get ACR password for pulling image
+# STEP 5 — Get ACR password
 echo "[STEP 5] Getting ACR password..."
 ACR_PASSWORD=$(az acr credential show -n "$ACR_NAME" --query passwords[0].value -o tsv)
+echo "[OK] Password fetched"
+echo ""
 
-# STEP 6 — Create Container App
-echo "[STEP 6] Creating Container App with external ingress..."
+# STEP 6 — WAIT for Container App Environment to finish provisioning
+echo "[STEP 6] Waiting for Container App environment provisioning..."
+
+for i in {1..20}; do
+    STATUS=$(az containerapp env show \
+        --name "$CONTAINER_APP_ENV" \
+        --resource-group "$RESOURCE_GROUP" \
+        --query properties.provisioningState \
+        -o tsv)
+
+    echo "Environment status: $STATUS"
+
+    if [[ "$STATUS" == "Succeeded" ]]; then
+        echo "[OK] Environment is ready!"
+        break
+    fi
+
+    echo "[INFO] Still provisioning... waiting 15 seconds"
+    sleep 15
+done
+
+if [[ "$STATUS" != "Succeeded" ]]; then
+    echo "[ERROR] Container App Environment did NOT become ready!"
+    exit 1
+fi
+
+echo ""
+
+# STEP 7 — Create Container App
+echo "[STEP 7] Creating Container App with external ingress..."
 az containerapp create \
   --name "$CONTAINER_APP_NAME" \
   --resource-group "$RESOURCE_GROUP" \

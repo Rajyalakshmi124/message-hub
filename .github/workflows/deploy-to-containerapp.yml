@@ -1,62 +1,26 @@
-name: Deploy to Azure Container App
+name: Create Container App
 
 on:
   workflow_dispatch:
 
-env:
-  RESOURCE_GROUP: exr-dvo-intern-inc
-  CONTAINER_APP_NAME: aca-messagehub-app
-  CONTAINER_APP_ENV: messagehub-env
-  ACR_LOGIN_SERVER: messagehubacr.azurecr.io
-  IMAGE_NAME: message-app
-
 jobs:
-  deploy:
+  create-app:
     runs-on: ubuntu-22.04
 
     steps:
-      # Step 1: Checkout code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2: Login to Azure
       - name: Login to Azure
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Step 3: Install Container Apps Extension
       - name: Install containerapp extension
         run: |
           az extension add --name containerapp --yes || az extension update --name containerapp
 
-      # Step 4: Deploy updated image to Container App
-      - name: Deploy image
+      - name: Run container app script
         run: |
-          IMAGE_TAG="v1-${GITHUB_SHA::8}"
-          FULL_IMAGE="$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
-
-          echo "Deploying image: $FULL_IMAGE"
-
-          # If app exists → update, else create
-          if az containerapp show \
-            --name $CONTAINER_APP_NAME \
-            --resource-group $RESOURCE_GROUP &> /dev/null;
-          then
-            echo "Updating existing Container App..."
-            az containerapp update \
-              --name $CONTAINER_APP_NAME \
-              --resource-group $RESOURCE_GROUP \
-              --image $FULL_IMAGE
-          else
-            echo "Creating new Container App..."
-            az containerapp create \
-              --name $CONTAINER_APP_NAME \
-              --resource-group $RESOURCE_GROUP \
-              --environment $CONTAINER_APP_ENV \
-              --image $FULL_IMAGE \
-              --target-port 5000 \
-              --ingress external
-          fi
-
-          echo "Deployment Completed Successfully!"
+          chmod +x scripts/create-container-app.sh
+          ./scripts/create-container-app.sh

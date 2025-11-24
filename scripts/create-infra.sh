@@ -1,4 +1,5 @@
 #!/bin/bash
+#stops immediately to avoid accidental or partial infrastructure creation or deletion.”
 set -euo pipefail
 
 ACTION=${1:-create}   # default = create

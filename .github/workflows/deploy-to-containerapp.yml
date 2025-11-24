@@ -1,38 +1,35 @@
-name: CD - Deploy to Azure Container App
+name: Create Container App (Dev/QA/Stg/Prod)
 
 on:
-  push:
-    branches:
-      - main
-
-env:
-  RESOURCE_GROUP: exr-dvo-intern-inc
-  CONTAINERAPP_NAME: messagehub-app
-  ACR_NAME: messagehubacr
-  IMAGE_NAME: message-app
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        description: "Select environment"
+        options: [Dev, QA, Staging, Prod]
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
+  create-app:
+    runs-on: ubuntu-22.04
 
     steps:
-      # 1. Checkout repository
+      # Step 1 - Checkout code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Login to Azure
+      # Step 2 - Login to Azure
       - name: Login to Azure
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # 3. Install containerapp extension
+      # Step 3 - Install containerapp extension
       - name: Install Container Apps extension
         run: |
           az extension add --name containerapp --yes || az extension update --name containerapp
 
-      # 4. Run deployment script
-      - name: Deploy latest image to Azure Container App
+      # Step 4 - Run create app script
+      - name: Run Container App Creation Script
         run: |
           chmod +x scripts/deploy-container-app.sh
-          ./scripts/deploy-container-app.sh
+          ./scripts/deploy-container-app.sh "${{ github.event.inputs.environment }}"

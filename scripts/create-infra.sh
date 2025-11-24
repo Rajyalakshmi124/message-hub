@@ -1,139 +1,87 @@
 #!/bin/bash
-set -euo pipefail
+set -euo pipefail    # Stops script immediately on error
 
-ACTION=$1
-ENV=$2
+ACTION=$1            # create/delete
+ENV=$2               # dev/qa/staging/prod
 
+# Fixed resource group (since you cannot create a new one)
 RESOURCE_GROUP="exr-dvo-intern-inc"
 LOCATION="Central India"
 SUBSCRIPTION_NAME="Founder-HUB-Microsoft Azure Sponsorship"
 
-# ----------------------------------------------------------
-# Select Infra values based on environment
-# ----------------------------------------------------------
+# Single ACR used for all environments
+ACR_NAME="messagehubacr"
 
+# Step 0: Set environment-specific values
 case "$ENV" in
-
   dev)
-    ACR_NAME="messagehubacrdev"
     CONTAINER_APP_ENV="messagehub-env-dev"
     LOG_WORKSPACE="logs-dev"
     ;;
-
   qa)
-    ACR_NAME="messagehubacrqa"
     CONTAINER_APP_ENV="messagehub-env-qa"
     LOG_WORKSPACE="logs-qa"
     ;;
-
   staging)
-    ACR_NAME="messagehubacrstg"
     CONTAINER_APP_ENV="messagehub-env-stg"
     LOG_WORKSPACE="logs-stg"
     ;;
-
   prod)
-    ACR_NAME="messagehubacrprod"
     CONTAINER_APP_ENV="messagehub-env-prod"
     LOG_WORKSPACE="logs-prod"
     ;;
-
-  *)
-    echo "Invalid environment: $ENV"
-    exit 1
-    ;;
 esac
 
+echo "=========================================="
+echo " Running $ACTION for $ENV environment"
+echo "=========================================="
 
-echo "========================================"
-echo " Azure Infra Script ($ACTION - $ENV)"
-echo " Using Resource Group: $RESOURCE_GROUP"
-echo "========================================"
-
-# ----------------------------------------------------------
-# DELETE INFRA
-# ----------------------------------------------------------
-
+# -----------------------------------------------------
+# Step 1: Delete Infra (only removes selected env)
+# -----------------------------------------------------
 if [[ "$ACTION" == "delete" ]]; then
-    echo "[DELETE] Deleting resources for $ENV..."
+    echo "Step 1 - Deleting infrastructure for $ENV..."
 
     # Delete Container App Environment
-    if az containerapp env show -g "$RESOURCE_GROUP" -n "$CONTAINER_APP_ENV" &> /dev/null; then
-        az containerapp env delete -g "$RESOURCE_GROUP" -n "$CONTAINER_APP_ENV" --yes
-    else
-        echo "Container App Environment not found (skipped)"
-    fi
+    az containerapp env show -g "$RESOURCE_GROUP" -n "$CONTAINER_APP_ENV" &> /dev/null && \
+      az containerapp env delete -g "$RESOURCE_GROUP" -n "$CONTAINER_APP_ENV" --yes
 
-    # Delete ACR
-    if az acr show -n "$ACR_NAME" -g "$RESOURCE_GROUP" &> /dev/null; then
-        az acr delete --name "$ACR_NAME" --resource-group "$RESOURCE_GROUP" --yes
-    else
-        echo "ACR not found (skipped)"
-    fi
+    # Delete Log Analytics
+    az monitor log-analytics workspace show -g "$RESOURCE_GROUP" -n "$LOG_WORKSPACE" &> /dev/null && \
+      az monitor.log-analytics workspace delete -g "$RESOURCE_GROUP" -n "$LOG_WORKSPACE" --yes
 
-    # Delete Log Analytics workspace
-    if az monitor log-analytics workspace show -g "$RESOURCE_GROUP" -n "$LOG_WORKSPACE" &> /dev/null; then
-        az monitor log-analytics workspace delete -g "$RESOURCE_GROUP" -n "$LOG_WORKSPACE" --yes
-    else
-        echo "Log Analytics Workspace not found (skipped)"
-    fi
-
-    echo "DELETE completed!"
+    echo "Delete completed!"
     exit 0
 fi
 
-
-# ----------------------------------------------------------
-# CREATE INFRA
-# ----------------------------------------------------------
-
-echo "[INFO] Setting subscription..."
+# -----------------------------------------------------
+# Step 2: Set subscription
+# -----------------------------------------------------
+echo "Step 2 - Setting Azure subscription..."
 az account set --subscription "$SUBSCRIPTION_NAME"
 
-echo "[INFO] Resource group already exists → Skipping creation."
+# -----------------------------------------------------
+# Step 3: Ensure Log Analytics Workspace exists
+# -----------------------------------------------------
+echo "Step 3 - Checking Log Analytics Workspace..."
+az monitor log-analytics workspace show -g "$RESOURCE_GROUP" -n "$LOG_WORKSPACE" &> /dev/null || \
+  az.monitor.log-analytics workspace create -g "$RESOURCE_GROUP" -n "$LOG_WORKSPACE" --location "$LOCATION"
 
-# Create Log Analytics Workspace
-echo "[INFO] Checking Log Analytics Workspace..."
-az monitor log-analytics workspace show -g "$RESOURCE_GROUP" -n "$LOG_WORKSPACE" &> /dev/null || {
-    az monitor log-analytics workspace create \
-        -g "$RESOURCE_GROUP" \
-        -n "$LOG_WORKSPACE" \
-        --location "$LOCATION"
-}
-
-# Create ACR
-echo "[INFO] Checking ACR..."
-az acr show -n "$ACR_NAME" -g "$RESOURCE_GROUP" &> /dev/null || {
-    az acr create \
-        --resource-group "$RESOURCE_GROUP" \
-        --name "$ACR_NAME" \
-        --sku Basic \
-        --admin-enabled true \
-        --location "$LOCATION"
-}
-
-# Create Container App Environment
-echo "[INFO] Checking Container App Environment..."
+# -----------------------------------------------------
+# Step 4: Ensure Container App Environment exists
+# -----------------------------------------------------
+echo "Step 4 - Checking Container App Environment..."
 az containerapp env show -g "$RESOURCE_GROUP" -n "$CONTAINER_APP_ENV" &> /dev/null || {
 
-    WORKSPACE_ID=$(az monitor log-analytics workspace show \
-        -g "$RESOURCE_GROUP" \
-        -n "$LOG_WORKSPACE" \
-        --query customerId -o tsv)
+  WORKSPACE_ID=$(az monitor log-analytics workspace show -g "$RESOURCE_GROUP" -n "$LOG_WORKSPACE" --query customerId -o tsv)
+  WORKSPACE_KEY=$(az monitor log-analytics workspace get-shared-keys -g "$RESOURCE_GROUP" -n "$LOG_WORKSPACE" --query primarySharedKey -o tsv)
 
-    WORKSPACE_KEY=$(az monitor log-analytics workspace get-shared-keys \
-        -g "$RESOURCE_GROUP" \
-        -n "$LOG_WORKSPACE" \
-        --query primarySharedKey -o tsv)
-
-    az containerapp env create \
-        --resource-group "$RESOURCE_GROUP" \
-        --name "$CONTAINER_APP_ENV" \
-        --location "$LOCATION" \
-        --logs-workspace-id "$WORKSPACE_ID" \
-        --logs-workspace-key "$WORKSPACE_KEY"
+  az containerapp env create \
+    --resource-group "$RESOURCE_GROUP" \
+    --name "$CONTAINER_APP_ENV" \
+    --location "$LOCATION" \
+    --logs-workspace-id "$WORKSPACE_ID" \
+    --logs-workspace-key "$WORKSPACE_KEY"
 }
 
-echo ""
-echo "CREATE completed successfully for $ENV!"
-echo "========================================"
+echo "Create completed successfully!"

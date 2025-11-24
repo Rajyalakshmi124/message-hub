@@ -1,46 +1,42 @@
-name: Manage Azure Infrastructure
+name: Manage Azure Infrastructure (Dev/QA/Stg/Prod)
 
 on:
   workflow_dispatch:
     inputs:
       action:
-        description: "Choose Action"
-        required: true
         type: choice
-        options:
-          - create
-          - delete
+        description: "Create or Delete Infra?"
+        options: [create, delete]
 
       environment:
-        description: "Select Environment"
-        required: true
         type: choice
-        options:
-          - dev
-          - qa
-          - staging
-          - prod
+        description: "Choose Environment"
+        options: [dev, qa, staging, prod]
 
 jobs:
   infra:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout repository
+      # Step 1: Pulls your code into the runner machine
+      - name: Step 1 - Checkout repository
         uses: actions/checkout@v4
 
-      - name: Login to Azure
+      # Step 2: Logs into Azure using service principal credentials
+      - name: Step 2 - Login to Azure
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Install containerapp extension
+      # Step 3: Installs the Azure Container Apps CLI extension
+      - name: Step 3 - Install containerapp extension
         run: |
           az extension add --name containerapp --yes || az extension update --name containerapp
 
-      - name: Run Infra Script
+      # Step 4: Runs the infra script with selected inputs (create/delete + env)
+      - name: Step 4 - Run Infrastructure Script
         run: |
-          chmod +x scripts/create-infra.sh
-          ./scripts/create-infra.sh \
+          chmod +x scripts/manage-infra.sh
+          ./scripts/manage-infra.sh \
             "${{ github.event.inputs.action }}" \
             "${{ github.event.inputs.environment }}"

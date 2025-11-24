@@ -11,7 +11,7 @@ on:
       environment:
         type: choice
         description: "Choose Environment"
-        options: [dev, qa, staging, prod]
+        options: [Dev, QA, Staging, Prod]
 
 jobs:
   infra:
@@ -28,12 +28,12 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Step 3: Installs the Azure Container Apps CLI extension
+      # Step 3: Installs Azure Container Apps extension
       - name: Step 3 - Install containerapp extension
         run: |
           az extension add --name containerapp --yes || az extension update --name containerapp
 
-      # Step 4: Runs the infra script with selected inputs (create/delete + env)
+      # Step 4: Runs the infra script with selected environment & action
       - name: Step 4 - Run Infrastructure Script
         run: |
           chmod +x scripts/create-infra.sh

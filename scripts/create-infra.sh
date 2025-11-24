@@ -15,25 +15,25 @@ SUBSCRIPTION_NAME="Founder-HUB-Microsoft Azure Sponsorship"
 case "$ENV" in
 
   dev)
-    ACR_NAME="messagehubacr-dev"
+    ACR_NAME="messagehubacrdev"
     CONTAINER_APP_ENV="messagehub-env-dev"
     LOG_WORKSPACE="logs-dev"
     ;;
 
   qa)
-    ACR_NAME="messagehubacr-qa"
+    ACR_NAME="messagehubacrqa"
     CONTAINER_APP_ENV="messagehub-env-qa"
     LOG_WORKSPACE="logs-qa"
     ;;
 
   staging)
-    ACR_NAME="messagehubacr-stg"
+    ACR_NAME="messagehubacrstg"
     CONTAINER_APP_ENV="messagehub-env-stg"
     LOG_WORKSPACE="logs-stg"
     ;;
 
   prod)
-    ACR_NAME="messagehubacr-prod"
+    ACR_NAME="messagehubacrprod"
     CONTAINER_APP_ENV="messagehub-env-prod"
     LOG_WORKSPACE="logs-prod"
     ;;

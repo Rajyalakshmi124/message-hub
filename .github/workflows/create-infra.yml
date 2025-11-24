@@ -11,7 +11,7 @@ on:
       environment:
         type: choice
         description: "Choose Environment"
-        options: [dev, qa, staging, prod]
+        options: [Dev, QA, Staging, Prod]
 
 jobs:
   infra:
@@ -36,7 +36,7 @@ jobs:
       # Step 4: Runs the infra script with selected inputs (create/delete + env)
       - name: Step 4 - Run Infrastructure Script
         run: |
-          chmod +x scripts/manage-infra.sh
-          ./scripts/manage-infra.sh \
+          chmod +x scripts/create-infra.sh
+          ./scripts/create-infra.sh \
             "${{ github.event.inputs.action }}" \
             "${{ github.event.inputs.environment }}"

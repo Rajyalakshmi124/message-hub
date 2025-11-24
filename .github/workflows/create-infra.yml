@@ -11,7 +11,7 @@ on:
       environment:
         type: choice
         description: "Choose Environment"
-        options: [Dev, QA, Staging, Prod]
+        options: [dev, qa, staging, prod]
 
 jobs:
   infra:

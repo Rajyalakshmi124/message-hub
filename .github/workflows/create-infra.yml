@@ -1,38 +1,46 @@
-name: Create or Delete Azure Infrastructure
+name: Manage Azure Infrastructure
 
 on:
   workflow_dispatch:
     inputs:
       action:
-        description: "Choose what to do"
+        description: "Choose Action"
         required: true
         type: choice
         options:
           - create
           - delete
 
+      environment:
+        description: "Select Environment"
+        required: true
+        type: choice
+        options:
+          - dev
+          - qa
+          - staging
+          - prod
+
 jobs:
   infra:
     runs-on: ubuntu-22.04
 
     steps:
-      # Step 1: Checkout code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2: Login to Azure
       - name: Login to Azure
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Step 3: Install Container Apps extension
       - name: Install containerapp extension
         run: |
           az extension add --name containerapp --yes || az extension update --name containerapp
 
-      # Step 4: Run script with action input (CREATE or DELETE)
-      - name: Run infra script
+      - name: Run Infra Script
         run: |
           chmod +x scripts/create-infra.sh
-          ./scripts/create-infra.sh "${{ github.event.inputs.action }}"
+          ./scripts/create-infra.sh \
+            "${{ github.event.inputs.action }}" \
+            "${{ github.event.inputs.environment }}"

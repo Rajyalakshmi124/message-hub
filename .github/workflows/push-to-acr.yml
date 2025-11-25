@@ -3,7 +3,7 @@ name: Build and Push to Dev ACR
 on:
   push:
     branches:
-      - main
+      - main   # Runs automatically when code is pushed to main
 
 env:
   IMAGE_NAME: message-app
@@ -13,20 +13,25 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout code
+
+      # Step 1 – Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Step 2 – Login to Azure
       - name: Login to Azure
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      # Step 3 – Load Dev ACR credentials
       - name: Load Dev ACR secrets
         run: |
           echo "ACR_LOGIN_SERVER=${{ secrets.ACR_DEV_LOGIN_SERVER }}" >> $GITHUB_ENV
           echo "ACR_USERNAME=${{ secrets.ACR_DEV_USERNAME }}" >> $GITHUB_ENV
           echo "ACR_PASSWORD=${{ secrets.ACR_DEV_PASSWORD }}" >> $GITHUB_ENV
 
+      # Step 4 – Login to Dev ACR
       - name: Login to Dev ACR
         uses: docker/login-action@v2
         with:
@@ -34,13 +39,15 @@ jobs:
           username: ${{ env.ACR_USERNAME }}
           password: ${{ env.ACR_PASSWORD }}
 
-      - name: Build Image
+      # Step 5 – Build the Docker image
+      - name: Build Docker image
         run: |
           SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-8)
           VERSION_TAG="v1-${SHORT_SHA}"
           echo "VERSION_TAG=$VERSION_TAG" >> $GITHUB_ENV
           docker build -t $ACR_LOGIN_SERVER/$IMAGE_NAME:$VERSION_TAG .
 
-      - name: Push Image to Dev ACR
+      # Step 6 – Push the image to Dev ACR
+      - name: Push image to Dev ACR
         run: |
           docker push $ACR_LOGIN_SERVER/$IMAGE_NAME:${{ env.VERSION_TAG }}

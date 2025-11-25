@@ -5,7 +5,7 @@ on:
     inputs:
       environment:
         type: choice
-        description: "Select environment"
+        description: "Select Environment"
         options: [Dev, QA, Staging, Prod]
 
 jobs:
@@ -13,24 +13,23 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      # Step 1 - Checkout code
+      # Step 1 - Pulls your repo into the GitHub runner
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2 - Login to Azure
+      # Step 2 - Login to Azure using Service Principal JSON in GitHub Secrets
       - name: Login to Azure
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Step 3 - Install containerapp extension
+      # Step 3 - Install Azure Container Apps CLI extension
       - name: Install Container Apps extension
         run: |
           az extension add --name containerapp --yes || az extension update --name containerapp
 
-      # Step 4 - Run create app script
+      # Step 4 - Run Container App creation script
       - name: Run Container App Creation Script
         run: |
           chmod +x scripts/create-container-app.sh
           ./scripts/create-container-app.sh "${{ github.event.inputs.environment }}"
-          

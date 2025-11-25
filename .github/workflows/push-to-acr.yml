@@ -1,44 +1,53 @@
-name: Build and Push Docker Image to ACR
+name: Build and Push Docker Image to ACR (Multi-Env)
 
-# This workflow runs whenever code is pushed to main branch
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        description: "Select Environment"
+        options: [Dev, QA, Staging, Prod]
 
-# Common variables used in the workflow
 env:
-  ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
   IMAGE_NAME: message-app
 
 jobs:
   build-and-push:
-
-    # Use a stable Ubuntu version
     runs-on: ubuntu-22.04
 
     steps:
-      # Step 1: Download the code from the GitHub repo
+      # Step 1: Checkout code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2: Login to Azure Container Registry
+      # Step 2: Map environment input to lowercase
+      - name: Set environment variable
+        run: echo "ENV=${{ github.event.inputs.environment }}" | tr '[:upper:]' '[:lower:]' >> $GITHUB_ENV
+
+      # Step 3: Load ACR credentials dynamically based on ENV
+      - name: Load ACR Credentials
+        run: |
+          echo "ACR_LOGIN_SERVER=${{ secrets['ACR_' + github.event.inputs.environment + '_LOGIN_SERVER'] }}" >> $GITHUB_ENV
+          echo "ACR_USERNAME=${{ secrets['ACR_' + github.event.inputs.environment + '_USERNAME'] }}" >> $GITHUB_ENV
+          echo "ACR_PASSWORD=${{ secrets['ACR_' + github.event.inputs.environment + '_PASSWORD'] }}" >> $GITHUB_ENV
+
+      # Step 4: Login to correct ACR
       - name: Login to ACR
         uses: docker/login-action@v2
         with:
-          registry: ${{ secrets.ACR_LOGIN_SERVER }}
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
+          registry: ${{ env.ACR_LOGIN_SERVER }}
+          username: ${{ env.ACR_USERNAME }}
+          password: ${{ env.ACR_PASSWORD }}
 
-      # Step 3: Build Docker image
-      - name: Build Docker image
+      # Step 5: Build Docker Image
+      - name: Build Docker Image
         run: |
           SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-8)
           VERSION_TAG="v1-${SHORT_SHA}"
           docker build -t $ACR_LOGIN_SERVER/$IMAGE_NAME:$VERSION_TAG .
 
-      # Step 4: Push the built image to ACR
-      - name: Push Docker image
+      # Step 6: Push Docker Image
+      - name: Push Docker Image
         run: |
           SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-8)
           VERSION_TAG="v1-${SHORT_SHA}"

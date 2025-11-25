@@ -2,51 +2,37 @@
 set -euo pipefail
 
 ENV=$1
-ENV=$(echo "$ENV" | tr '[:upper:]' '[:lower:]')
+ENV=$(echo "$ENV" | tr '[:upper:]' '[:lower:]')   # Convert Dev → dev
 
 RESOURCE_GROUP="exr-dvo-intern-inc"
 SUBSCRIPTION_NAME="Founder-HUB-Microsoft Azure Sponsorship"
-ACR_NAME="messagehubacr"
+ACR_NAME="messagehubacr"          # Single ACR for all envs
 IMAGE_NAME="message-app"
 TARGET_PORT=5000
 
-case "$ENV" in
-  dev)
-    CONTAINER_APP_NAME="messagehub-app-dev"
-    CONTAINER_APP_ENV="messagehub-env-dev"
-    ;;
-  qa)
-    CONTAINER_APP_NAME="messagehub-app-qa"
-    CONTAINER_APP_ENV="messagehub-env-qa"
-    ;;
-  staging)
-    CONTAINER_APP_NAME="messagehub-app-stg"
-    CONTAINER_APP_ENV="messagehub-env-stg"
-    ;;
-  prod)
-    CONTAINER_APP_NAME="messagehub-app-prod"
-    CONTAINER_APP_ENV="messagehub-env-prod"
-    ;;
-  *)
-    echo "Invalid environment: $ENV"
-    exit 1
-    ;;
-esac
+# ------------------------------
+# Dynamic Names (NO repetition)
+# ------------------------------
+CONTAINER_APP_NAME="messagehub-app-$ENV"
+CONTAINER_APP_ENV="messagehub-env-$ENV"
 
 echo "========================================="
-echo " Creating Container App for $ENV"
-echo " App Name: $CONTAINER_APP_NAME"
-echo " Env Name: $CONTAINER_APP_ENV"
+echo " Creating Container App"
+echo " ENVIRONMENT     : $ENV"
+echo " APP NAME        : $CONTAINER_APP_NAME"
+echo " ENV NAME        : $CONTAINER_APP_ENV"
 echo "========================================="
 
-# 1. Set subscription
-echo "[Step 1] Setting subscription..."
+# Step 1 — Set subscription
+echo "[STEP 1] Setting subscription..."
 az account set --subscription "$SUBSCRIPTION_NAME"
 
-# 2. Get ACR login server
+# Step 2 — Get ACR login server
+echo "[STEP 2] Fetching ACR login server..."
 ACR_LOGIN_SERVER=$(az acr show -n "$ACR_NAME" -g "$RESOURCE_GROUP" --query loginServer -o tsv)
 
-# 3. Get latest tag
+# Step 3 — Get latest image tag
+echo "[STEP 3] Fetching latest image tag..."
 TAG=$(az acr repository show-tags \
       --name "$ACR_NAME" \
       --repository "$IMAGE_NAME" \
@@ -58,10 +44,11 @@ if [[ -z "$TAG" ]]; then
 fi
 
 FULL_IMAGE="$ACR_LOGIN_SERVER/$IMAGE_NAME:$TAG"
-echo "[INFO] Using image: $FULL_IMAGE"
 
-# 4. Create Container App
-echo "[Step 4] Creating Container App..."
+echo "[INFO] Using Image: $FULL_IMAGE"
+
+# Step 4 — Create the container app
+echo "[STEP 4] Creating Container App..."
 az containerapp create \
   --name "$CONTAINER_APP_NAME" \
   --resource-group "$RESOURCE_GROUP" \
@@ -74,5 +61,5 @@ az containerapp create \
   --registry-password "$(az acr credential show -n $ACR_NAME --query passwords[0].value -o tsv)"
 
 echo "========================================="
-echo "Container App Created Successfully!"
+echo " Container App Created Successfully!"
 echo "========================================="

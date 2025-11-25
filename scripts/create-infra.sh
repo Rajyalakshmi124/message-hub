@@ -1,105 +1,89 @@
 #!/bin/bash
 set -euo pipefail
 
-ACTION=$1
-ENV=$2
+ACTION=$1       # create or delete
+ENV=$2          # Dev / QA / Staging / Prod
 ENV=$(echo "$ENV" | tr '[:upper:]' '[:lower:]')
 
 RESOURCE_GROUP="exr-dvo-intern-inc"
 LOCATION="Central India"
 SUBSCRIPTION_NAME="Founder-HUB-Microsoft Azure Sponsorship"
 
-case "$ENV" in
-  dev)
-    APP_NAME="messagehub-app-dev"
-    ENV_NAME="messagehub-env-dev"
-    WORKSPACE="logs-dev"
-    ;;
-  qa)
-    APP_NAME="messagehub-app-qa"
-    ENV_NAME="messagehub-env-qa"
-    WORKSPACE="logs-qa"
-    ;;
-  staging)
-    APP_NAME="messagehub-app-stg"
-    ENV_NAME="messagehub-env-stg"
-    WORKSPACE="logs-stg"
-    ;;
-  prod)
-    APP_NAME="messagehub-app-prod"
-    ENV_NAME="messagehub-env-prod"
-    WORKSPACE="logs-prod"
-    ;;
-  *)
-    echo "Invalid environment: $ENV"
-    exit 1
-    ;;
-esac
+# -------------------------------
+# SAFE Azure-compliant names
+# -------------------------------
+APP_NAME="messagehub-app-$ENV"
+ENV_NAME="messagehub-env-$ENV"
+WORKSPACE="logs-$ENV"
+ACR_NAME="messagehubacr${ENV}"   # dev → messagehubacrdev (VALID)
+# No hyphens, fully Azure safe
 
-echo "======================================"
-echo "ACTION       : $ACTION"
-echo "ENVIRONMENT  : $ENV"
-echo "APP NAME     : $APP_NAME"
-echo "ENV NAME     : $ENV_NAME"
-echo "WORKSPACE    : $WORKSPACE"
-echo "======================================"
+echo "=========================================="
+echo " ACTION      : $ACTION"
+echo " ENV         : $ENV"
+echo " APP NAME    : $APP_NAME"
+echo " ENV NAME    : $ENV_NAME"
+echo " WORKSPACE   : $WORKSPACE"
+echo " ACR NAME    : $ACR_NAME"
+echo "=========================================="
 
-# ---------------------------------------------
-# DELETE Infra
-# ---------------------------------------------
+
+# -------------------------------
+# DELETE INFRA
+# -------------------------------
 if [[ "$ACTION" == "delete" ]]; then
-    echo "[STEP] Deleting Infrastructure for $ENV..."
+    echo "[DELETE] Removing infrastructure for $ENV..."
 
     # Delete Container App
     if az containerapp show -g "$RESOURCE_GROUP" -n "$APP_NAME" &>/dev/null; then
         echo "Deleting Container App: $APP_NAME"
-        az containerapp delete --resource-group "$RESOURCE_GROUP" --name "$APP_NAME" --yes
-    else
-        echo "[INFO] No container app found (skipping)"
+        az containerapp delete -g "$RESOURCE_GROUP" -n "$APP_NAME" --yes
     fi
 
     # Delete Container App Environment
     if az containerapp env show -g "$RESOURCE_GROUP" -n "$ENV_NAME" &>/dev/null; then
         echo "Deleting Container App Environment: $ENV_NAME"
-        az containerapp env delete \
-            --resource-group "$RESOURCE_GROUP" \
-            --name "$ENV_NAME" \
-            --yes
-    else
-        echo "[INFO] No environment found (skipping)"
+        az containerapp env delete -g "$RESOURCE_GROUP" -n "$ENV_NAME" --yes
     fi
 
     # Delete Log Analytics Workspace
     if az monitor log-analytics workspace show -g "$RESOURCE_GROUP" -n "$WORKSPACE" &>/dev/null; then
-        echo "Deleting Log Analytics Workspace: $WORKSPACE"
-        az monitor log-analytics workspace delete \
-            --resource-group "$RESOURCE_GROUP" \
-            --name "$WORKSPACE" \
-            --yes
-    else
-        echo "[INFO] No logs workspace found (skipping)"
+        echo "Deleting Log Workspace: $WORKSPACE"
+        az monitor log-analytics workspace delete -g "$RESOURCE_GROUP" -n "$WORKSPACE" --yes
     fi
 
-    echo "Delete Completed!"
+    # Delete ACR
+    if az acr show -n "$ACR_NAME" -g "$RESOURCE_GROUP" &>/dev/null; then
+        echo "Deleting ACR: $ACR_NAME"
+        az acr delete -g "$RESOURCE_GROUP" -n "$ACR_NAME" --yes
+    fi
+
+    echo "DELETE Completed!"
     exit 0
 fi
 
-# ---------------------------------------------
-# CREATE Infra
-# ---------------------------------------------
 
+# -------------------------------
+# CREATE INFRA
+# -------------------------------
 echo "[STEP] Setting subscription..."
 az account set --subscription "$SUBSCRIPTION_NAME"
 
 echo "[STEP] Creating Log Analytics Workspace..."
-az monitor log-analytics workspace show -g "$RESOURCE_GROUP" -n "$WORKSPACE" &>/dev/null || \
+az monitor log-analytics workspace show -g "$RESOURCE_GROUP" -n "$WORKSPACE" &>/dev/null ||
 az monitor log-analytics workspace create \
+    -g "$RESOURCE_GROUP" -n "$WORKSPACE" -l "$LOCATION"
+
+echo "[STEP] Creating ACR for env: $ACR_NAME"
+az acr show -n "$ACR_NAME" -g "$RESOURCE_GROUP" &>/dev/null ||
+az acr create \
     --resource-group "$RESOURCE_GROUP" \
-    --name "$WORKSPACE" \
+    --name "$ACR_NAME" \
+    --sku Basic \
+    --admin-enabled true \
     --location "$LOCATION"
 
 echo "[STEP] Creating Container App Environment..."
-
 az containerapp env show -g "$RESOURCE_GROUP" -n "$ENV_NAME" &>/dev/null || {
 
     WORKSPACE_ID=$(az monitor log-analytics workspace show \
@@ -116,4 +100,4 @@ az containerapp env show -g "$RESOURCE_GROUP" -n "$ENV_NAME" &>/dev/null || {
         --logs-workspace-key "$WORKSPACE_KEY"
 }
 
-echo "Create Completed Successfully!"
+echo "CREATE Completed Successfully!"

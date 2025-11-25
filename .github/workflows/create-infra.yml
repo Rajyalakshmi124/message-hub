@@ -1,24 +1,32 @@
-name: Multi-Env-Infra (Dev/QA/Stg/Prod)
+name: Manage Multi-Environment Infra (Dev/QA/Staging/Prod)
 
 on:
   workflow_dispatch:
     inputs:
       action:
-        type: choice
         description: "Create or Delete Infra?"
-        options: [create, delete]
+        required: true
+        type: choice
+        options:
+          - create
+          - delete
 
       environment:
+        description: "Select Environment"
+        required: true
         type: choice
-        description: "Choose Environment"
-        options: [Dev, QA, Staging, Prod]
+        options:
+          - Dev
+          - QA
+          - Staging
+          - Prod
 
 jobs:
-  infra:
+  multi-infra:
     runs-on: ubuntu-22.04
 
     steps:
-      # Step 1: Checkout repository
+      # Step 1: Pull repo
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -28,13 +36,13 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Step 3: Install Container App extension
-      - name: Install containerapp extension
+      # Step 3: Install Container Apps CLI extension
+      - name: Install Container Apps extension
         run: |
           az extension add --name containerapp --yes || az extension update --name containerapp
 
-      # Step 4: Run Infra Script
-      - name: Run Infrastructure Script
+      # Step 4: Run script
+      - name: Run Multi-Infra Script
         run: |
           chmod +x scripts/create-infra.sh
           ./scripts/create-infra.sh \

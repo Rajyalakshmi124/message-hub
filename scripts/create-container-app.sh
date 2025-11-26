@@ -12,9 +12,9 @@ TARGET_PORT=5000
 # -----------------------------------------
 # Dynamic: ACR, Container App, Env Names
 # -----------------------------------------
-ACR_NAME="messagehubacr$ENV"                     # dev → messagehubacrdev
-CONTAINER_APP_NAME="messagehub-app-$ENV"         # dev → messagehub-app-dev
-CONTAINER_APP_ENV="messagehub-env-$ENV"          # dev → messagehub-env-dev
+ACR_NAME="messagehubacr$ENV"
+CONTAINER_APP_NAME="messagehub-app-$ENV"
+CONTAINER_APP_ENV="messagehub-env-$ENV"
 
 echo "========================================="
 echo " Creating Container App"

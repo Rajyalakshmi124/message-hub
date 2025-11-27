@@ -1,51 +1,37 @@
-name: Build & Push Docker Image to ACR
+build and push workflow:
+name: Build and Push Docker Image to ACR
 
 on:
-  # Auto-build image for DEV when code is pushed to main
-  push:
-    branches: [main]
-
-  # Manual trigger for QA / Staging / Prod
   workflow_dispatch:
     inputs:
       environment:
         type: choice
         description: "Select Environment"
-        options: [qa, staging, prod]
+        options: [Dev, QA, Staging, Prod]
 
 jobs:
   build-and-push:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v4
+      # Step 1: Pull source code
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      # Detect Environment (auto=dev, manual=selected)
-      - name: Detect Environment
+      # Step 2: Set environment-specific variables
+      - name: Set ACR variables
+        id: acr
         run: |
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            echo "ENV=dev" >> $GITHUB_ENV
-          else
-            ENV="${{ github.event.inputs.environment }}"
-            echo "ENV=$ENV" >> $GITHUB_ENV
-          fi
+          ENV="${{ github.event.inputs.environment }}"
+          ENV=$(echo "$ENV" | tr '[:upper:]' '[:lower:]')
 
-      # Load correct ACR secrets based on ENV
-      - name: Load ACR Secrets
-        run: |
-          ENV_UPPER=$(echo "${{ env.ENV }}" | tr '[:lower:]' '[:upper:]')
+          echo "ENV=$ENV" >> $GITHUB_ENV
 
-          # Build dynamic secret names
-          LOGIN="ACR_${ENV_UPPER}_LOGIN_SERVER"
-          USER="ACR_${ENV_UPPER}_USERNAME"
-          PASS="ACR_${ENV_UPPER}_PASSWORD"
+          echo "ACR_LOGIN_SERVER=${{ secrets[format('ACR_{0}_LOGIN_SERVER', github.event.inputs.environment)] }}" >> $GITHUB_ENV
+          echo "ACR_USERNAME=${{ secrets[format('ACR_{0}_USERNAME', github.event.inputs.environment)] }}" >> $GITHUB_ENV
+          echo "ACR_PASSWORD=${{ secrets[format('ACR_{0}_PASSWORD', github.event.inputs.environment)] }}" >> $GITHUB_ENV
 
-          # Export into GitHub ENV
-          echo "ACR_LOGIN_SERVER=${{ secrets[LOGIN] }}" >> $GITHUB_ENV
-          echo "ACR_USERNAME=${{ secrets[USER] }}" >> $GITHUB_ENV
-          echo "ACR_PASSWORD=${{ secrets[PASS] }}" >> $GITHUB_ENV
-
-      # Login to ACR
+      # Step 3: Login to ACR
       - name: Login to Azure Container Registry
         uses: docker/login-action@v2
         with:
@@ -53,16 +39,21 @@ jobs:
           username: ${{ env.ACR_USERNAME }}
           password: ${{ env.ACR_PASSWORD }}
 
-      # Build & Push Image
-      - name: Build & Push Image
+      # Step 4: Build Docker Image
+      - name: Build Docker Image
         run: |
-          TAG="${{ env.ENV }}-$(echo $GITHUB_SHA | cut -c1-8)"
-          echo "TAG=$TAG" >> $GITHUB_ENV
+          SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-8)
+          VERSION_TAG="v1-${SHORT_SHA}"
+          echo "TAG=$VERSION_TAG" >> $GITHUB_ENV
+          docker build -t $ACR_LOGIN_SERVER/message-app:$VERSION_TAG .
 
-          docker build -t $ACR_LOGIN_SERVER/message-app:$TAG .
-          docker push $ACR_LOGIN_SERVER/message-app:$TAG
-
-      # Print URL
-      - name: Print Image URL
+      # Step 5: Push Image to ACR
+      - name: Push Docker Image
         run: |
-          echo "Pushed → $ACR_LOGIN_SERVER/message-app:${{ env.TAG }}"
+          docker push $ACR_LOGIN_SERVER/message-app:${{ env.TAG }}
+
+      # Step 6: Output success info
+      - name: Print image URL
+        run: |
+          echo "Image pushed successfully:"
+          echo "$ACR_LOGIN_SERVER/message-app:${{ env.TAG }}"

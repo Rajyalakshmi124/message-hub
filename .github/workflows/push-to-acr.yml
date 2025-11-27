@@ -1,4 +1,3 @@
-build and push workflow:
 name: Build and Push Docker Image to ACR
 
 on:

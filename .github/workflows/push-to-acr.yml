@@ -2,7 +2,8 @@ name: Build & Push Docker Image to ACR
 
 on:
   push:
-    branches: [main]   # Auto → dev
+    # Auto → dev
+    branches: [main]
   workflow_dispatch:
     inputs:
       environment:

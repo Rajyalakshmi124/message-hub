@@ -96,9 +96,7 @@ process() {
   echo "[OK] Created infra for $1"
 }
 
-# ---------------------------------------------------------------
-# MAIN ACTION HANDLING
-# ---------------------------------------------------------------
+# --------------MAIN ACTION HANDLING-----------------
 case "$ACTION" in
   create-all|delete-all)
     for e in "${ENVS[@]}"; do
@@ -114,4 +112,4 @@ case "$ACTION" in
     ;;
 esac
 
-echo "✔ Completed ACTION: $ACTION"
+echo "Completed ACTION: $ACTION"

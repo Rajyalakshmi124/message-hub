@@ -1,19 +1,22 @@
 name: Manage Multi-Environment Infrastructure
 
 on:
-  push:
-    branches: [main]   # Auto-trigger for DEV
-
   workflow_dispatch:
     inputs:
+
       mode:
+        description: "Select Action Type"
         type: choice
-        description: "Action"
-        options: [create-one, delete-one, create-all, delete-all]
+        options:
+          - create-all
+          - delete-all
+          - create-one
+          - delete-one
+
       environment:
+        description: "Environment (Only for create-one / delete-one)"
         type: choice
-        description: "Environment (for create-one/delete-one)"
-        options: [qa, staging, prod]
+        options: [dev, qa, staging, prod]
         required: false
 
 jobs:
@@ -21,49 +24,21 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Azure Login
+      - name: Login to Azure
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Ensure Container Apps Extension
-        run: az extension add --name containerapp --yes || az extension update --name containerapp
-
-      # -------------------------------
-      # Clean, unified environment detection
-      # -------------------------------
-      - name: Determine Mode & Environment
-        id: detect
+      - name: Install Containerapp extension
         run: |
-          # Auto mode for DEV on push
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            echo "MODE=create-one" >> $GITHUB_ENV
-            echo "ENVIRONMENT=dev" >> $GITHUB_ENV
-            exit 0
-          fi
+          az extension add --name containerapp --yes || az extension update --name containerapp
 
-          # Manual mode
-          MODE="${{ github.event.inputs.mode }}"
-          ENV="${{ github.event.inputs.environment }}"
-
-          echo "MODE=$MODE" >> $GITHUB_ENV
-
-          # For create-one/delete-one, environment is required
-          if [[ "$MODE" == "create-one" || "$MODE" == "delete-one" ]]; then
-            echo "ENVIRONMENT=$ENV" >> $GITHUB_ENV
-          else
-            echo "ENVIRONMENT=none" >> $GITHUB_ENV
-          fi
-
-      # -------------------------------
-      # Run your existing infra script
-      # -------------------------------
-      - name: Execute Infra Script
+      - name: Run Multi-Infra Script
         run: |
           chmod +x scripts/create-infra.sh
           ./scripts/create-infra.sh \
-            "${{ env.MODE }}" \
-            "${{ env.ENVIRONMENT }}"
+            "${{ github.event.inputs.mode }}" \
+            "${{ github.event.inputs.environment }}"
